@@ -6,9 +6,9 @@ import serial.tools.list_ports
 class CriProbe:
 
     def __init__(self, simulated=False):
-        # Perform autodetect here
-        # When no probes are detected we'll create CR-100 and CR-250 simulated probes
-        # these simulated probes will primarily be used for unit testing
+
+        # Autodetects CRI probe/s. When no probe/s detected, creates CR-100 and CR-250 simulated probes.
+
         if simulated:
             self.probes = [{'Type': 'CR-100'},
                            {'Type': 'CR-250'}]
@@ -19,28 +19,34 @@ class CriProbe:
                 if re.search(r'A\d{6}', port.device):
                     with serial.Serial(port.device, 115200, timeout=1) as cri_probe:
                         probe_info = {}
+
                         cri_probe.write(b'RC ID\r\n')
                         probe_result = cri_probe.readline()
-                        m = re.search(r'(A\d{5})', str(probe_result))
-                        if m:
-                            reg = m.group(1)
-                            probe_id = str(reg)
+                        id = re.search(r'(A\d{5})', str(probe_result))
+                        if id:
+                            reg_id = id.group(1)
+                            probe_id = str(reg_id)
                         probe_info['ID'] = probe_id
+
                         cri_probe.write(b'RC Model\r\n')
-                        m = re.search(r'(CR-\d{3})', str(probe_result))
-                        if m:
-                            reg = m.group(1)
-                            probe_model = str(reg)
+                        probe_result = cri_probe.readline()
+                        model = re.search(r'(CR-\d{3})', str(probe_result))
+                        if model:
+                            reg_model = model.group(1)
+                            probe_model = str(reg_model)
                         probe_info['Model'] = probe_model
+
                         cri_probe.write(b'RC InstrumentType\r\n')
-                        m = re.search(r'(\d)', str(probe_result))
-                        if m:
-                            reg = m.group(1)
-                            if int(reg) == 0:
+                        probe_result = cri_probe.readline()
+                        instrument_type = re.search(r'(\d)', str(probe_result))
+                        if instrument_type:
+                            reg_type = instrument_type.group(1)
+                            if int(reg_type) == 0:
                                 probe_type = 'Photometer'
-                            elif int(reg) == 1:
+                            elif int(reg_type) == 1:
                                 probe_type = 'Colorimeter'
-                            elif int(reg) == 2:
+                            elif int(reg_type) == 2:
                                 probe_type = 'Spectroradiometer'
                         probe_info['Type'] = probe_type
+
                         self.probes.append(probe_info)
