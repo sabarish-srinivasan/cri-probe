@@ -22,8 +22,8 @@ class MyTestCase(unittest.TestCase):
             # check to make sure each probe in the list has valid info
             for probe in p.probes:
                 self.assertTrue(re.search(r'A\d{5}', probe['ID']))
-            # Force a failure
-            # self.assertEqual(True, False)
+                self.assertTrue(re.search(r'CR-\d{3}', probe['Model']))
+                self.assertTrue(probe['Type'] == 'Photometer' or probe['Type'] == 'Colorimeter' or probe['Type'] == 'Spectroradiometer')
         else:
             pass
 

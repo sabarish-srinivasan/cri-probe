@@ -47,8 +47,8 @@ class CriProbe:
                                 probe_type = 'Colorimeter'
                             elif int(reg_type) == 2:
                                 probe_type = 'Spectroradiometer'
+                            probe_info['Type'] = probe_type
                         else:
                             raise RuntimeError('CRI Probe Type Not Found')
-                        probe_info['Type'] = probe_type
 
                         self.probes.append(probe_info)
