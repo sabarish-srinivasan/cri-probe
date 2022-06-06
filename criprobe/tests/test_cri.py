@@ -21,7 +21,7 @@ class MyTestCase(unittest.TestCase):
         if p.probes:
             # check to make sure each probe in the list has valid info
             for probe in p.probes:
-                self.assertTrue(re.search(r'A\d{6}', probe['ID']))
+                self.assertTrue(re.search(r'A\d{5}', probe['ID']))
             # Force a failure
             # self.assertEqual(True, False)
         else:

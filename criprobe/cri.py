@@ -7,7 +7,7 @@ class CriProbe:
 
     def __init__(self, simulated=False):
 
-        # Autodetects CRI probe/s. When no probe/s detected, creates CR-100 and CR-250 simulated probes.
+        # Autodetects CRI probe/s.
 
         if simulated:
             self.probes = [{'Type': 'CR-100'},
@@ -24,17 +24,17 @@ class CriProbe:
                         probe_result = cri_probe.readline()
                         id = re.search(r'(A\d{5})', str(probe_result))
                         if id:
-                            reg_id = id.group(1)
-                            probe_id = str(reg_id)
-                        probe_info['ID'] = probe_id
+                            probe_info['ID'] = str(id.group(1))
+                        else:
+                            raise RuntimeError('CRI Probe ID Not Found')
 
                         cri_probe.write(b'RC Model\r\n')
                         probe_result = cri_probe.readline()
                         model = re.search(r'(CR-\d{3})', str(probe_result))
                         if model:
-                            reg_model = model.group(1)
-                            probe_model = str(reg_model)
-                        probe_info['Model'] = probe_model
+                            probe_info['Model'] = str(model.group(1))
+                        else:
+                            raise RuntimeError('CRI Probe Model Not Found')
 
                         cri_probe.write(b'RC InstrumentType\r\n')
                         probe_result = cri_probe.readline()
@@ -47,6 +47,8 @@ class CriProbe:
                                 probe_type = 'Colorimeter'
                             elif int(reg_type) == 2:
                                 probe_type = 'Spectroradiometer'
+                        else:
+                            raise RuntimeError('CRI Probe Type Not Found')
                         probe_info['Type'] = probe_type
 
                         self.probes.append(probe_info)
