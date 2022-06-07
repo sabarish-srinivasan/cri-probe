@@ -1,6 +1,7 @@
 import re
 import serial
 import serial.tools.list_ports
+import numpy as np
 
 
 class CriProbe:
@@ -60,3 +61,78 @@ class CriProbe:
                             raise RuntimeError('CRI Probe Type Not Found')
 
                         self.probes.append(probe_info)
+
+    def measure_XYZ(self, degree=2):
+
+        # Return *CIE XYZ* tristimulus values of sample.
+
+        result = []
+        ports = serial.tools.list_ports.comports()
+        for port in ports:
+            with serial.Serial(port.device, 115200, timeout=60) as cri_probe:
+
+                response = {}
+
+                cri_probe.write(b'RC InstrumentType\r\n')
+                probe_result = cri_probe.readline()
+                instrument_type = re.search(r'(\d)', str(probe_result))
+                if instrument_type:
+                    reg_type = instrument_type.group(1)
+
+                if degree == 2:
+                    # Trigger a measurement for XYZ (default 2-degrees).
+                    cri_probe.write(b'M\r\n')
+                    result.append(cri_probe.readline())
+                    cri_probe.write(b'RM XYZ\r\n')
+                    result.append(cri_probe.readline())
+
+                    # Validate result.
+                    if 'OK:0:M:No errors' not in str(result[0]):
+                        if 'Light intensity too low or unmeasurable' in str(result[0]):
+                            return {'XYZ': np.nan}
+                        else:
+                            raise ValueError(str(result[0]))
+
+                    # Find and return the measurements.
+                    xyz_val = re.search(r'XYZ:([\d.e+-]+),([\d.e+-]+),([\d.e+-]+)', str(result[1]))
+                    if xyz_val:
+                        response['X'] = xyz_val.group(1)
+                        response['Y'] = xyz_val.group(2)
+                        response['Z'] = xyz_val.group(3)
+                    else:
+                        raise ValueError('XYZ')
+
+                elif degree == 10:
+
+                    # RM XYZ10 is only valid if Instrument Type is 2 (Spectroradiometer).
+                    if int(reg_type) == 2:
+
+                        # Trigger a measurement for XYZ10 (10-degrees).
+                        cri_probe.write(b'M\r\n')
+                        result.append(cri_probe.readline())
+                        cri_probe.write(b'RM XYZ10\r\n')
+                        result.append(cri_probe.readline())
+
+                        # Validate result.
+                        if 'OK:0:M:No errors' not in str(result[0]):
+                            if 'Light intensity too low or unmeasurable' in str(result[0]):
+                                return {'XYZ10': np.nan}
+                            else:
+                                raise ValueError(str(result[0]))
+
+                        # Find and return the measurements.
+                        xyz_val = re.search(r'XYZ10:([\d.e+-]+),([\d.e+-]+),([\d.e+-]+)', str(result[1]))
+                        if xyz_val:
+                            response['X10'] = xyz_val.group(1)
+                            response['Y10'] = xyz_val.group(2)
+                            response['Z10'] = xyz_val.group(3)
+                        else:
+                            raise ValueError('XYZ10')
+
+                    else:
+                        raise RuntimeError('RM XYZ10 is only valid if Instrument Type is Spectroradiometer.')
+
+                else:
+                    raise ValueError('Degree of 2 or 10 is Required')
+
+        return response
