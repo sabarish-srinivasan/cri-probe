@@ -10,8 +10,16 @@ class CriProbe:
         # Autodetects CRI probe/s.
 
         if simulated:
-            self.probes = [{'Type': 'CR-100'},
-                           {'Type': 'CR-250'}]
+            # Create two simulated probes which mirror the ID, Model, and Type
+            # information that would be found during real probe autodetect.
+            self.probes = [{'ID': 'A19999',
+                            'Model': 'CR-100',
+                            'Type': 'Colorimeter'
+                            },
+                           {'ID': 'A29999',
+                            'Model': 'CR-250',
+                            'Type': 'Spectroradiometer'
+                            }]
         else:
             self.probes = []
             ports = serial.tools.list_ports.comports()

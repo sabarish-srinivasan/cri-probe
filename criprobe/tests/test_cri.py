@@ -9,8 +9,11 @@ class MyTestCase(unittest.TestCase):
         p = cri.CriProbe(simulated=True)
 
         # Check the simulated probes
-        self.assertEqual(p.probes[0], {'Type': 'CR-100'})
-        self.assertEqual(p.probes[1], {'Type': 'CR-250'})
+        p0 = {'ID': 'A19999', 'Model': 'CR-100', 'Type': 'Colorimeter'}
+        self.assertEqual(p.probes[0], p0)
+
+        p1 = {'ID': 'A29999', 'Model': 'CR-250', 'Type': 'Spectroradiometer'}
+        self.assertEqual(p.probes[1], p1)
 
     def test_init_real_probe(self):
         # this test will only be meaningful if real probes are connected
