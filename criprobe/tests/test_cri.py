@@ -26,7 +26,8 @@ class MyTestCase(unittest.TestCase):
             for probe in p.probes:
                 self.assertTrue(re.search(r'A\d{5}', probe['ID']))
                 self.assertTrue(re.search(r'CR-\d{3}', probe['Model']))
-                self.assertTrue(probe['Type'] == 'Photometer' or probe['Type'] == 'Colorimeter' or probe['Type'] == 'Spectroradiometer')
+                self.assertTrue(probe['Type'] == 'Photometer' or probe['Type'] == 'Colorimeter' or probe[
+                    'Type'] == 'Spectroradiometer')
         else:
             pass
 

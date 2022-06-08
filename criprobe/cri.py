@@ -70,7 +70,6 @@ class CriProbe:
         ports = serial.tools.list_ports.comports()
         for port in ports:
             with serial.Serial(port.device, 115200, timeout=60) as cri_probe:
-
                 response = {}
 
                 cri_probe.write(b'RC InstrumentType\r\n')
@@ -93,7 +92,7 @@ class CriProbe:
                         else:
                             raise ValueError(str(result[0]))
 
-                    # Find and return the measurements.
+                    # Find and return XYZ measurement.
                     xyz_val = re.search(r'XYZ:([\d.e+-]+),([\d.e+-]+),([\d.e+-]+)', str(result[1]))
                     if xyz_val:
                         response['X'] = xyz_val.group(1)
@@ -103,7 +102,6 @@ class CriProbe:
                         raise ValueError('XYZ')
 
                 elif degree == 10:
-
                     # RM XYZ10 is only valid if Instrument Type is 2 (Spectroradiometer).
                     if int(reg_type) == 2:
 
@@ -120,7 +118,7 @@ class CriProbe:
                             else:
                                 raise ValueError(str(result[0]))
 
-                        # Find and return the measurements.
+                        # Find and return XYZ10 measurement.
                         xyz_val = re.search(r'XYZ10:([\d.e+-]+),([\d.e+-]+),([\d.e+-]+)', str(result[1]))
                         if xyz_val:
                             response['X10'] = xyz_val.group(1)
@@ -130,9 +128,9 @@ class CriProbe:
                             raise ValueError('XYZ10')
 
                     else:
-                        raise RuntimeError('RM XYZ10 is only valid if Instrument Type is Spectroradiometer.')
+                        raise RuntimeError('RM XYZ10 Only Valid if Instrument Type is Spectroradiometer.')
 
                 else:
-                    raise ValueError('Degree of 2 or 10 is Required')
+                    raise ValueError('Degree of 2 or 10 Required')
 
         return response
