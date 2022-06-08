@@ -13,11 +13,13 @@ class CriProbe:
         if simulated:
             # Create two simulated probes which mirror the ID, Model, and Type
             # information that would be found during real probe autodetect.
-            self.probes = [{'ID': 'A19999',
+            self.probes = [{'Device': '/dev/cu.usbmodemA199991',
+                            'ID': 'A19999',
                             'Model': 'CR-100',
                             'Type': 'Colorimeter'
                             },
-                           {'ID': 'A29999',
+                           {'Device': '/dev/cu.usbmodemA299991',
+                            'ID': 'A29999',
                             'Model': 'CR-250',
                             'Type': 'Spectroradiometer'
                             }]
@@ -27,7 +29,8 @@ class CriProbe:
             for port in ports:
                 if re.search(r'A\d{6}', port.device):
                     with serial.Serial(port.device, 115200, timeout=1) as cri_probe:
-                        probe_info = {}
+                        # Save the port device for later use
+                        probe_info = {'Device': port.device}
 
                         cri_probe.write(b'RC ID\r\n')
                         probe_result = cri_probe.readline()
@@ -67,9 +70,8 @@ class CriProbe:
         # Return *CIE XYZ* tristimulus values of sample.
 
         result = []
-        ports = serial.tools.list_ports.comports()
-        for port in ports:
-            with serial.Serial(port.device, 115200, timeout=60) as cri_probe:
+        for probe in self.probes:
+            with serial.Serial(probe['Device'], 115200, timeout=60) as cri_probe:
                 response = {}
 
                 cri_probe.write(b'RC InstrumentType\r\n')
