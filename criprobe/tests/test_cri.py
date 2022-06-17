@@ -4,6 +4,7 @@ import criprobe as cri
 import re
 
 
+# https://pyserial.readthedocs.io/en/latest/tools.html#serial.tools.list_ports.ListPortInfo
 class TestPort:
     def __init__(self):
         self.device = '/dev/cu.usbmodemA004891'
