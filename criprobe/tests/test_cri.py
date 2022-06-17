@@ -1,6 +1,21 @@
 import unittest
+from unittest.mock import patch
 import criprobe as cri
 import re
+
+
+class TestPort:
+    def __init__(self):
+        self.device = '/dev/cu.usbmodemA004891'
+
+# Save this idea for later
+# def send_cmd_sim(port, cmd):
+#     if cmd == b'RC ID\r\n':
+#         return b'OK:0:RC ID:A00489\r\n'
+#     if cmd == b'RC Model\r\n':
+#         return b'OK:0:RC Model:CR-100\r\n'
+#     if cmd == b'RC InstrumentType\r\n':
+#         return b'OK:0:RC InstrumentType:1\r\n'
 
 
 class MyTestCase(unittest.TestCase):
@@ -32,8 +47,23 @@ class MyTestCase(unittest.TestCase):
         else:
             pass
 
-    def test_measure_XYZ(self):
+    @patch('criprobe.CriProbe.get_ports', autospec=True)
+    @patch('criprobe.CriProbe.send_command', autospec=True)
+    def test_init_patch(self, mock_send_command, mock_get_ports):
+        test_port = TestPort()
+        mock_get_ports.return_value = [test_port]
+        mock_send_command.side_effect = [b'OK:0:RC ID:A00489\r\n',
+                                         b'OK:0:RC Model:CR-100\r\n',
+                                         b'OK:0:RC InstrumentType:1\r\n']
         p = cri.CriProbe()
+        # Check and make sure the probe has the right info
+        if p.probes:
+            for probe in p.probes:
+                print(probe)
+                self.assertEqual(probe['Device'], '/dev/cu.usbmodemA004891')
+                self.assertEqual(probe['ID'], 'A00489')
+                self.assertEqual(probe['Model'], 'CR-100')
+                self.assertEqual(probe['Type'], 'Photometer')
 
 
 if __name__ == '__main__':
