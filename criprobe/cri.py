@@ -71,6 +71,7 @@ class CriProbe:
         cmd_bytes = bytes(cmd, 'utf-8') + b'\r\n'
         port.write(cmd_bytes)
         probe_result = port.readline()
+        print(probe_result)
         return probe_result
 
     def measure_xyY(self, degree=2):

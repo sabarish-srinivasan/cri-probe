@@ -90,6 +90,26 @@ class MyTestCase(unittest.TestCase):
         self.assertIs(result['y'], np.nan)
         self.assertIs(result['Y'], np.nan)
 
+    @patch('criprobe.CriProbe.get_ports', autospec=True)
+    @patch('criprobe.CriProbe.open_port', autospec=True)
+    @patch('criprobe.CriProbe.send_command', autospec=True)
+    def test_measure_xyY_2deg(self, mock_send_command, mock_open_port, mock_get_ports):
+        test_port = TestPort()
+        mock_get_ports.return_value = [test_port]
+        mock_open_port.return_value = 'Mock Port'
+        mock_send_command.side_effect = [b'OK:0:RC ID:A00489\r\n',
+                                         b'OK:0:RC Model:CR-100\r\n',
+                                         b'OK:0:RC InstrumentType:1\r\n',
+                                         b'OK:0:M:No errors\r\n',
+                                         b'OK:0:RM xy:0.3754,0.3773\r\n',
+                                         b'OK:0:RM Y:2.239e+00\r\n']
+
+        p = cri.CriProbe()
+        result = p.measure_xyY()
+        self.assertEqual(result['x'], 0.3754)
+        self.assertEqual(result['y'], 0.3773)
+        self.assertEqual(result['Y'], 2.239e+00)
+
 
 if __name__ == '__main__':
     unittest.main()
