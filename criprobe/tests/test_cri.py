@@ -1,4 +1,5 @@
 import unittest
+import warnings
 from unittest.mock import patch
 import criprobe as cri
 import re
@@ -6,8 +7,7 @@ import re
 
 # https://pyserial.readthedocs.io/en/latest/tools.html#serial.tools.list_ports.ListPortInfo
 class TestPort:
-    def __init__(self):
-        self.device = '/dev/cu.usbmodemA004891'
+    device = '/dev/cu.usbmodemA004891'
 
 
 class MyTestCase(unittest.TestCase):
@@ -36,7 +36,7 @@ class MyTestCase(unittest.TestCase):
                 self.assertTrue(probe['Type'] == 'Photometer' or probe['Type'] == 'Colorimeter' or probe[
                     'Type'] == 'Spectroradiometer')
         else:
-            pass
+            warnings.warn('No real probes detected')
 
     @patch('criprobe.CriProbe.get_ports', autospec=True)
     @patch('criprobe.CriProbe.open_port', autospec=True)
@@ -56,6 +56,20 @@ class MyTestCase(unittest.TestCase):
                 self.assertEqual(probe['ID'], 'A00489')
                 self.assertEqual(probe['Model'], 'CR-100')
                 self.assertEqual(probe['Type'], 'Photometer')
+
+    def test_real_measure_xyY(self):
+        # this test will only be meaningful if real probes are connected
+        # if no probes are connected it will simply pass
+        p = cri.CriProbe()
+
+        # If there is a probe try to measure xyY
+        if p.probes:
+            result = p.measure_xyY()
+            self.assertGreater(result['x'], 0)
+            self.assertGreater(result['y'], 0)
+            self.assertGreater(result['Y'], 0)
+        else:
+            warnings.warn('No real probes detected')
 
 
 if __name__ == '__main__':

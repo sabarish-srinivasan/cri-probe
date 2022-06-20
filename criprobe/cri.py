@@ -1,6 +1,7 @@
 import re
 import serial
 import serial.tools.list_ports
+import numpy as np
 
 
 class CriProbe:
@@ -63,10 +64,58 @@ class CriProbe:
         return serial.tools.list_ports.comports()
 
     def open_port(self, device):
-        return serial.Serial(device, 115200, timeout=1)
+        # Allow up to 30 seconds for probe to return a measurement
+        return serial.Serial(device, 115200, timeout=30)
 
     def send_command(self, port, cmd):
         cmd_bytes = bytes(cmd, 'utf-8') + b'\r\n'
         port.write(cmd_bytes)
         probe_result = port.readline()
         return probe_result
+
+    def measure_xyY(self, degree=2):
+        # Return *CIE xyY* values of sample.
+        result = []
+        response = {}
+        for probe in self.probes:
+            # Check to see if 2 or 10 degree was specified
+            if degree == 2:
+                rm_xy = 'RM xy'
+                rm_Y = 'RM Y'
+                suffix = ''
+            elif degree == 10:
+                if probe['Type'] != 'Spectroradiometer':
+                    raise RuntimeError('RM xyY10 Only Valid if Instrument Type is Spectroradiometer.')
+                rm_xy = 'RM xy10'
+                rm_Y = 'RM Y10'
+                suffix = '10'
+            else:
+                raise ValueError('Degree of 2 or 10 Required')
+
+            # Trigger a measurement for xyY (default 2-degrees).
+            result.append(self.send_command(probe['Port'], 'M'))
+            result.append(self.send_command(probe['Port'], rm_xy))
+            result.append(self.send_command(probe['Port'], rm_Y))
+
+            # Validate result.
+            if 'OK:0:M:No errors' not in str(result[0]):
+                if 'Light intensity too low or unmeasurable' in str(result[0]):
+                    return {'x': np.nan, 'y': np.nan, 'Y': np.nan}
+                else:
+                    raise ValueError(str(result[0]))
+
+            # Find and return xyY measurement.
+            xy_val = re.search(r'xy:([\d\.]+),([\d\.]+)', str(result[1]))
+            if xy_val:
+                response['x'+suffix] = float(xy_val.group(1))
+                response['y'+suffix] = float(xy_val.group(2))
+            else:
+                raise ValueError('xy'+suffix)
+
+            Y_val = re.search(r'Y:([\d\.e\+\-]+)', str(result[2]))
+            if Y_val:
+                response['Y'+suffix] = float(Y_val.group(1))
+            else:
+                raise ValueError('Y'+suffix)
+
+        return response
