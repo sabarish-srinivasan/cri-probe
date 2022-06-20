@@ -3,6 +3,7 @@ import warnings
 from unittest.mock import patch
 import criprobe as cri
 import re
+import numpy as np
 
 
 # https://pyserial.readthedocs.io/en/latest/tools.html#serial.tools.list_ports.ListPortInfo
@@ -70,6 +71,24 @@ class MyTestCase(unittest.TestCase):
             self.assertGreater(result['Y'], 0)
         else:
             warnings.warn('No real probes detected')
+
+    @patch('criprobe.CriProbe.get_ports', autospec=True)
+    @patch('criprobe.CriProbe.open_port', autospec=True)
+    @patch('criprobe.CriProbe.send_command', autospec=True)
+    def test_measure_xyY_light_low(self, mock_send_command, mock_open_port, mock_get_ports):
+        test_port = TestPort()
+        mock_get_ports.return_value = [test_port]
+        mock_open_port.return_value = 'Mock Port'
+        mock_send_command.side_effect = [b'OK:0:RC ID:A00489\r\n',
+                                         b'OK:0:RC Model:CR-100\r\n',
+                                         b'OK:0:RC InstrumentType:1\r\n',
+                                         b'ER:-305:M:Light intensity too low or unmeasurable\r\n']
+
+        p = cri.CriProbe()
+        result = p.measure_xyY()
+        self.assertIs(result['x'], np.nan)
+        self.assertIs(result['y'], np.nan)
+        self.assertIs(result['Y'], np.nan)
 
 
 if __name__ == '__main__':

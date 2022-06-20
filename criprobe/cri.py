@@ -94,15 +94,17 @@ class CriProbe:
 
             # Trigger a measurement for xyY (default 2-degrees).
             result.append(self.send_command(probe['Port'], 'M'))
-            result.append(self.send_command(probe['Port'], rm_xy))
-            result.append(self.send_command(probe['Port'], rm_Y))
 
-            # Validate result.
+            # Make sure measure was OK
             if 'OK:0:M:No errors' not in str(result[0]):
                 if 'Light intensity too low or unmeasurable' in str(result[0]):
                     return {'x': np.nan, 'y': np.nan, 'Y': np.nan}
                 else:
                     raise ValueError(str(result[0]))
+
+            # Meaurement was OK, go on to read values
+            result.append(self.send_command(probe['Port'], rm_xy))
+            result.append(self.send_command(probe['Port'], rm_Y))
 
             # Find and return xyY measurement.
             xy_val = re.search(r'xy:([\d\.]+),([\d\.]+)', str(result[1]))
