@@ -16,10 +16,10 @@ class MyTestCase(unittest.TestCase):
         p = cri.CriProbe(simulated=True)
 
         # Check the simulated probes
-        p0 = {'Device': '/dev/cu.usbmodemA199991', 'ID': 'A19999', 'Model': 'CR-100', 'Type': 'Colorimeter'}
+        p0 = {'Port': 'Mock Port', 'ID': 'A19999', 'Model': 'CR-100', 'Type': 'Colorimeter'}
         self.assertEqual(p.probes[0], p0)
 
-        p1 = {'Device': '/dev/cu.usbmodemA299991', 'ID': 'A29999', 'Model': 'CR-250', 'Type': 'Spectroradiometer'}
+        p1 = {'Port': 'Mock Port', 'ID': 'A29999', 'Model': 'CR-250', 'Type': 'Spectroradiometer'}
         self.assertEqual(p.probes[1], p1)
 
     def test_init_real_probe(self):
@@ -39,10 +39,12 @@ class MyTestCase(unittest.TestCase):
             pass
 
     @patch('criprobe.CriProbe.get_ports', autospec=True)
+    @patch('criprobe.CriProbe.open_port', autospec=True)
     @patch('criprobe.CriProbe.send_command', autospec=True)
-    def test_init_patch(self, mock_send_command, mock_get_ports):
+    def test_init_patch(self, mock_send_command, mock_open_port, mock_get_ports):
         test_port = TestPort()
         mock_get_ports.return_value = [test_port]
+        mock_open_port.return_value = 'Mock Port'
         mock_send_command.side_effect = [b'OK:0:RC ID:A00489\r\n',
                                          b'OK:0:RC Model:CR-100\r\n',
                                          b'OK:0:RC InstrumentType:1\r\n']
@@ -50,7 +52,7 @@ class MyTestCase(unittest.TestCase):
         # Check and make sure the probe has the right info
         if p.probes:
             for probe in p.probes:
-                self.assertEqual(probe['Device'], '/dev/cu.usbmodemA004891')
+                self.assertEqual(probe['Port'], 'Mock Port')
                 self.assertEqual(probe['ID'], 'A00489')
                 self.assertEqual(probe['Model'], 'CR-100')
                 self.assertEqual(probe['Type'], 'Photometer')

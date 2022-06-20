@@ -9,12 +9,12 @@ class CriProbe:
         if simulated:
             # Create two simulated probes which mirror the ID, Model, and Type
             # information that would be found during real probe autodetect.
-            self.probes = [{'Device': '/dev/cu.usbmodemA199991',
+            self.probes = [{'Port': 'Mock Port',
                             'ID': 'A19999',
                             'Model': 'CR-100',
                             'Type': 'Colorimeter'
                             },
-                           {'Device': '/dev/cu.usbmodemA299991',
+                           {'Port': 'Mock Port',
                             'ID': 'A29999',
                             'Model': 'CR-250',
                             'Type': 'Spectroradiometer'
@@ -25,24 +25,24 @@ class CriProbe:
             for port in ports:
                 if re.search(r'A\d{6}', port.device):
                     # Save the port device for later use
-                    cri_probe = serial.Serial(port.device, 115200, timeout=1)
-                    probe_info = {'port': cri_probe}
+                    cri_probe = self.open_port(port.device)
+                    probe_info = {'Port': cri_probe}
 
-                    probe_result = self.send_command(port, 'RC ID')
+                    probe_result = self.send_command(cri_probe, 'RC ID')
                     id = re.search(r'(A\d{5})', str(probe_result))
                     if id:
                         probe_info['ID'] = str(id.group(1))
                     else:
                         raise RuntimeError('CRI Probe ID Not Found')
 
-                    probe_result = self.send_command(port, 'RC Model')
+                    probe_result = self.send_command(cri_probe, 'RC Model')
                     model = re.search(r'(CR-\d{3})', str(probe_result))
                     if model:
                         probe_info['Model'] = str(model.group(1))
                     else:
                         raise RuntimeError('CRI Probe Model Not Found')
 
-                    probe_result = self.send_command(port, 'RC InstrumentType')
+                    probe_result = self.send_command(cri_probe, 'RC InstrumentType')
                     instrument_type = re.search(r'(\d)', str(probe_result))
                     if instrument_type:
                         reg_type = instrument_type.group(1)
@@ -62,9 +62,11 @@ class CriProbe:
     def get_ports(self):
         return serial.tools.list_ports.comports()
 
+    def open_port(self, device):
+        return serial.Serial(device, 115200, timeout=1)
+
     def send_command(self, port, cmd):
-        with serial.Serial(port.device, 115200, timeout=1) as cri_probe:
-            cmd_bytes = bytes(cmd, 'utf-8') + b'\r\n'
-            cri_probe.write(cmd_bytes)
-            probe_result = cri_probe.readline()
+        cmd_bytes = bytes(cmd, 'utf-8') + b'\r\n'
+        port.write(cmd_bytes)
+        probe_result = port.readline()
         return probe_result
