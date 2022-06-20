@@ -9,15 +9,6 @@ class TestPort:
     def __init__(self):
         self.device = '/dev/cu.usbmodemA004891'
 
-# Save this idea for later
-# def send_cmd_sim(port, cmd):
-#     if cmd == b'RC ID\r\n':
-#         return b'OK:0:RC ID:A00489\r\n'
-#     if cmd == b'RC Model\r\n':
-#         return b'OK:0:RC Model:CR-100\r\n'
-#     if cmd == b'RC InstrumentType\r\n':
-#         return b'OK:0:RC InstrumentType:1\r\n'
-
 
 class MyTestCase(unittest.TestCase):
     def test_init(self):
