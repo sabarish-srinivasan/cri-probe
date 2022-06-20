@@ -31,7 +31,6 @@ class MyTestCase(unittest.TestCase):
         if p.probes:
             # check to make sure each probe in the list has valid info
             for probe in p.probes:
-                print(probe)
                 self.assertTrue(re.search(r'A\d{5}', probe['ID']))
                 self.assertTrue(re.search(r'CR-\d{3}', probe['Model']))
                 self.assertTrue(probe['Type'] == 'Photometer' or probe['Type'] == 'Colorimeter' or probe[
@@ -51,7 +50,6 @@ class MyTestCase(unittest.TestCase):
         # Check and make sure the probe has the right info
         if p.probes:
             for probe in p.probes:
-                print(probe)
                 self.assertEqual(probe['Device'], '/dev/cu.usbmodemA004891')
                 self.assertEqual(probe['ID'], 'A00489')
                 self.assertEqual(probe['Model'], 'CR-100')
