@@ -25,7 +25,8 @@ class CriProbe:
             for port in ports:
                 if re.search(r'A\d{6}', port.device):
                     # Save the port device for later use
-                    probe_info = {'Device': port.device}
+                    cri_probe = serial.Serial(port.device, 115200, timeout=1)
+                    probe_info = {'port': cri_probe}
 
                     probe_result = self.send_command(port, 'RC ID')
                     id = re.search(r'(A\d{5})', str(probe_result))
