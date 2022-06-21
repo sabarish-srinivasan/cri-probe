@@ -65,10 +65,10 @@ class MyTestCase(unittest.TestCase):
 
         # If there is a probe try to measure xyY
         if p.probes:
-            result = p.measure_xyY()
-            self.assertGreater(result['x'], 0)
-            self.assertGreater(result['y'], 0)
-            self.assertGreater(result['Y'], 0)
+            for result in p.measure_xyY():
+                self.assertGreater(result['x'], 0)
+                self.assertGreater(result['y'], 0)
+                self.assertGreater(result['Y'], 0)
         else:
             warnings.warn('No real probes detected')
 
