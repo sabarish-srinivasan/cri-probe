@@ -6,10 +6,10 @@ import numpy as np
 
 class CriProbe:
     def __init__(self, simulated=False):
-        # Autodetects CRI probe/s.
+        # Autodetects CRI probe/s
         if simulated:
             # Create two simulated probes which mirror the ID, Model, and Type
-            # information that would be found during real probe autodetect.
+            # information that would be found during real probe autodetect
             self.probes = [{'Port': 'Mock Port',
                             'ID': 'A19999',
                             'Model': 'CR-100',
@@ -44,7 +44,7 @@ class CriProbe:
                         raise RuntimeError('CRI Probe Model Not Found')
 
                     probe_result = self.send_command(cri_probe, 'RC InstrumentType')
-                    instrument_type = re.search(r'(\d)', str(probe_result))
+                    instrument_type = re.search(r'InstrumentType:(\d)', str(probe_result))
                     if instrument_type:
                         reg_type = instrument_type.group(1)
                         probe_type = 'Unknown'
@@ -74,7 +74,7 @@ class CriProbe:
         return probe_result
 
     def measure_xyY(self, degree=2):
-        # Return *CIE xyY* values of sample.
+        # Return *CIE xyY* values of sample
         final_result = []
 
         for probe in self.probes:
@@ -89,7 +89,7 @@ class CriProbe:
             # RM commands change based on 2 or 10 degree
             if degree == 10:
                 if probe['Type'] != 'Spectroradiometer':
-                    raise RuntimeError('RM xyY10 Only Valid if Instrument Type is Spectroradiometer.')
+                    raise RuntimeError('RM xyY10 Only Valid if Instrument Type is Spectroradiometer')
                 rm_xy = 'RM xy10'
                 rm_Y = 'RM Y10'
                 suffix = '10'
@@ -99,34 +99,37 @@ class CriProbe:
             rm_xy = rm_xy + suffix
             rm_Y = rm_Y + suffix
 
-            # Trigger a measurement for xyY (default 2-degrees).
-            result.append(self.send_command(probe['Port'], 'M'))
-            result.append(self.send_command(probe['Port'], rm_xy))
-            result.append(self.send_command(probe['Port'], rm_Y))
-
-            # Find and return xyY measurement.
+            # Create probe ID
             response['Probe ID'] = probe['ID']
 
-            # Validate result.
+            # Initialize probe measurement
+            result.append(self.send_command(probe['Port'], 'M'))
+
+            # Validate result
             if 'OK:0:M:No errors' not in str(result):
                 if 'Light intensity too low or unmeasurable' in str(result):
-                    response = {'x': np.nan, 'y': np.nan, 'Y': np.nan}
+                    response = {'x': np.nan, 'y': np.nan, 'Y': np.nan, 'Probe ID': probe['ID']}
                 else:
                     raise ValueError(str(result))
             else:
-                xy_val = re.search(r'xy:([\d\.]+),([\d\.]+)', str(result[1]))
+                # Trigger a measurement for xyY (default 2-degrees)
+                result.append(self.send_command(probe['Port'], rm_xy))
+                result.append(self.send_command(probe['Port'], rm_Y))
+
+                # Find and return xyY measurement
+                xy_val = re.search(r'xy:([\d.]+),([\d.]+)', str(result[1]))
                 if xy_val:
                     response['x' + suffix] = float(xy_val.group(1))
                     response['y' + suffix] = float(xy_val.group(2))
                 else:
                     raise ValueError('xy' + suffix)
 
-                Y_val = re.search(r'Y:([\d\.e\+\-]+)', str(result))
+                Y_val = re.search(r'Y:([\d.e+\-]+)', str(result))
                 if Y_val:
                     response['Y' + suffix] = float(Y_val.group(1))
                 else:
                     raise ValueError('Y' + suffix)
 
-                final_result.append(response)
+            final_result.append(response)
 
         return final_result
