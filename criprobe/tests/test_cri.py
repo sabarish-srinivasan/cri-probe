@@ -65,10 +65,11 @@ class MyTestCase(unittest.TestCase):
 
         # If there is a probe try to measure xyY
         if p.probes:
-            for result in p.measure_xyY():
-                self.assertGreater(result['x'], 0)
-                self.assertGreater(result['y'], 0)
-                self.assertGreater(result['Y'], 0)
+            p.measure()
+            for result in p.read_measure('xy'):
+                self.assertGreater(np.all([float(x) for x in result['xy'].split(',')]), 0)
+            for result in p.read_measure('Y'):
+                self.assertGreater(float(result['Y']), 0)
         else:
             warnings.warn('No real probes detected')
 
@@ -85,12 +86,11 @@ class MyTestCase(unittest.TestCase):
                                          b'ER:-305:M:Light intensity too low or unmeasurable\r\n']
 
         p = cri.CriProbe()
-        result = p.measure_xyY()
+        p.measure()
+        result = p.read_measure('xy')
         for probe_dict in result:
             self.assertEqual(probe_dict['Probe ID'], 'A00489')
-            self.assertIs(probe_dict['x'], np.nan)
-            self.assertIs(probe_dict['y'], np.nan)
-            self.assertIs(probe_dict['Y'], np.nan)
+            self.assertIs(probe_dict['xy'], np.nan)
 
     @patch('criprobe.CriProbe.get_ports', autospec=True)
     @patch('criprobe.CriProbe.open_port', autospec=True)
@@ -107,7 +107,8 @@ class MyTestCase(unittest.TestCase):
                                          b'OK:0:RM Y:2.239e+00\r\n']
 
         p = cri.CriProbe()
-        result = p.measure_xyY()
+        p.measure()
+        result = p.read_measure('xy')
         for probe_dict in result:
             self.assertEqual(probe_dict['x'], 0.3754)
             self.assertEqual(probe_dict['y'], 0.3773)
@@ -126,9 +127,11 @@ class MyTestCase(unittest.TestCase):
 
         p = cri.CriProbe()
         with self.assertRaises(RuntimeError) as cm:
-            p.measure_xyY(degree=10)
+            p.measure()
+            p.read_measure('xy', degree=10)
+            p.read_measure('Y', degree=10)
             err = cm.exception
-            self.assertEqual(str(err), 'RM xyY10 Only Valid if Instrument Type is Spectroradiometer')
+            self.assertEqual(str(err), '10 degree only valid if instrument type is spectroradiometer')
 
     @patch('criprobe.CriProbe.get_ports', autospec=True)
     @patch('criprobe.CriProbe.open_port', autospec=True)
@@ -223,7 +226,8 @@ class MyTestCase(unittest.TestCase):
 
         with self.assertRaises(ValueError) as cm:
             p = cri.CriProbe()
-            p.measure_xyY(degree=4)
+            p.measure()
+            p.read_measure('xy')
         err = cm.exception
         self.assertEqual(str(err), 'Degree of 2 or 10 Required')
 
@@ -241,7 +245,8 @@ class MyTestCase(unittest.TestCase):
 
         with self.assertRaises(ValueError) as cm:
             p = cri.CriProbe()
-            p.measure_xyY(degree=10)
+            p.measure()
+            p.read_measure('xy')
         err = cm.exception
         self.assertEqual(str(err), "[b'OK:0:RM xy:\\r\\n']" or "[b'OK:0:RM xy10:\\r\\n']")
 
@@ -259,7 +264,8 @@ class MyTestCase(unittest.TestCase):
 
         with self.assertRaises(ValueError) as cm:
             p = cri.CriProbe()
-            p.measure_xyY(degree=10)
+            p.measure()
+            p.read_measure('Y')
         err = cm.exception
         self.assertEqual(str(err), "[b'OK:0:RM Y:\\r\\n']" or "[b'OK:0:RM Y10:\\r\\n']")
 
