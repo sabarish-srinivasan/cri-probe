@@ -73,6 +73,13 @@ class CriProbe:
         probe_result = port.readline()
         return probe_result
 
+    def measure(self):
+        result = []
+        for probe in self.probes:
+            # Initialize probe measurement
+            result = self.send_command(probe['Port'], 'M')
+        return result
+
     def read_measure(self, measure_type, degree=2):
         final_result = []
 
@@ -99,16 +106,27 @@ class CriProbe:
             # RM
             rm += suffix
             result = self.send_command(probe['Port'], rm)
-            str_result = str(result).split(':')
-            measurement = str_result[3].strip("\\r\\n'")
-            response[measure_type] = measurement
+            new_result = result.decode().rstrip().split(':')
+            measurement = new_result[3]
+
+            # Validate measurement
+            if measurement == '':
+                raise ValueError('Invalid measurement')
+
+            # Return unit
+            for unit in ['msec', 'Hz', 'deg']:
+                if unit in measurement:
+                    response['Unit'] = unit
+
+            # Find and return measurement
+            m_list = re.findall(r'(-?\d+[\d.eE+-]*)', measurement)
+            if m_list:
+                if len(m_list) == 1:
+                    response[measure_type] = float(m_list[0])
+                else:
+                    response[measure_type] = np.array(m_list).astype('float')
+            else:
+                response[measure_type] = measurement
             final_result.append(response)
 
         return final_result
-
-    def measure(self):
-        result = []
-        for probe in self.probes:
-            # Initialize probe measurement
-            result = self.send_command(probe['Port'], 'M')
-        return result
