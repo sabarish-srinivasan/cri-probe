@@ -6,7 +6,6 @@ import re
 import numpy as np
 
 
-# https://pyserial.readthedocs.io/en/latest/tools.html#serial.tools.list_ports.ListPortInfo
 class TestPort:
     device = '/dev/cu.usbmodemA004891'
 
@@ -65,32 +64,13 @@ class MyTestCase(unittest.TestCase):
 
         # If there is a probe try to measure xyY
         if p.probes:
-            for result in p.measure_xyY():
-                self.assertGreater(result['x'], 0)
-                self.assertGreater(result['y'], 0)
+            p.measure()
+            for result in p.read_measure('xy'):
+                self.assertGreater(np.all(result['xy']), 0)
+            for result in p.read_measure('Y'):
                 self.assertGreater(result['Y'], 0)
         else:
             warnings.warn('No real probes detected')
-
-    @patch('criprobe.CriProbe.get_ports', autospec=True)
-    @patch('criprobe.CriProbe.open_port', autospec=True)
-    @patch('criprobe.CriProbe.send_command', autospec=True)
-    def test_measure_xyY_light_low(self, mock_send_command, mock_open_port, mock_get_ports):
-        test_port = TestPort()
-        mock_get_ports.return_value = [test_port]
-        mock_open_port.return_value = 'Mock Port'
-        mock_send_command.side_effect = [b'OK:0:RC ID:A00489\r\n',
-                                         b'OK:0:RC Model:CR-100\r\n',
-                                         b'OK:0:RC InstrumentType:1\r\n',
-                                         b'ER:-305:M:Light intensity too low or unmeasurable\r\n']
-
-        p = cri.CriProbe()
-        result = p.measure_xyY()
-        for probe_dict in result:
-            self.assertEqual(probe_dict['Probe ID'], 'A00489')
-            self.assertIs(probe_dict['x'], np.nan)
-            self.assertIs(probe_dict['y'], np.nan)
-            self.assertIs(probe_dict['Y'], np.nan)
 
     @patch('criprobe.CriProbe.get_ports', autospec=True)
     @patch('criprobe.CriProbe.open_port', autospec=True)
@@ -107,10 +87,12 @@ class MyTestCase(unittest.TestCase):
                                          b'OK:0:RM Y:2.239e+00\r\n']
 
         p = cri.CriProbe()
-        result = p.measure_xyY()
-        for probe_dict in result:
-            self.assertEqual(probe_dict['x'], 0.3754)
-            self.assertEqual(probe_dict['y'], 0.3773)
+        p.measure()
+        result_xy = p.read_measure('xy')
+        result_Y = p.read_measure('Y')
+        for probe_dict in result_xy:
+            self.assertEqual(probe_dict['xy'].tolist(), [0.3754, 0.3773])
+        for probe_dict in result_Y:
             self.assertEqual(probe_dict['Y'], 2.239e+00)
 
     @patch('criprobe.CriProbe.get_ports', autospec=True)
@@ -122,13 +104,17 @@ class MyTestCase(unittest.TestCase):
         mock_open_port.return_value = 'Mock Port'
         mock_send_command.side_effect = [b'OK:0:RC ID:A00489\r\n',
                                          b'OK:0:RC Model:CR-100\r\n',
-                                         b'OK:0:RC InstrumentType:1\r\n']
+                                         b'OK:0:RC InstrumentType:1\r\n',
+                                         b'OK:0:M:No errors\r\n',
+                                         b'OK:0:RM xy:0.3754,0.3773\r\n',
+                                         b'OK:0:RM Y:2.239e+00\r\n']
 
         p = cri.CriProbe()
-        with self.assertRaises(RuntimeError) as cm:
-            p.measure_xyY(degree=10)
+        p.measure()
+        with self.assertRaises(ValueError) as cm:
+            p.read_measure('xy', degree=10)
             err = cm.exception
-            self.assertEqual(str(err), 'RM xyY10 Only Valid if Instrument Type is Spectroradiometer')
+            self.assertEqual(str(err), '10 degree only valid if instrument type is spectroradiometer')
 
     @patch('criprobe.CriProbe.get_ports', autospec=True)
     @patch('criprobe.CriProbe.open_port', autospec=True)
@@ -213,19 +199,22 @@ class MyTestCase(unittest.TestCase):
     @patch('criprobe.CriProbe.get_ports', autospec=True)
     @patch('criprobe.CriProbe.open_port', autospec=True)
     @patch('criprobe.CriProbe.send_command', autospec=True)
-    def test_spectroradiometer_type(self, mock_send_command, mock_open_port, mock_get_ports):
+    def test_valid_degree(self, mock_send_command, mock_open_port, mock_get_ports):
         test_port = TestPort()
         mock_get_ports.return_value = [test_port]
         mock_open_port.return_value = 'Mock Port'
         mock_send_command.side_effect = [b'OK:0:RC ID:A00489\r\n',
                                          b'OK:0:RC Model:CR-100\r\n',
-                                         b'OK:0:RC InstrumentType:2\r\n']
+                                         b'OK:0:RC InstrumentType:2\r\n',
+                                         b'OK:0:M:No errors\r\n',
+                                         b'OK:0:RM xy:\r\n']
 
         with self.assertRaises(ValueError) as cm:
             p = cri.CriProbe()
-            p.measure_xyY(degree=4)
+            p.measure()
+            p.read_measure('xy', degree=4)
         err = cm.exception
-        self.assertEqual(str(err), 'Degree of 2 or 10 Required')
+        self.assertEqual(str(err), 'Degree of 2 or 10 required')
 
     @patch('criprobe.CriProbe.get_ports', autospec=True)
     @patch('criprobe.CriProbe.open_port', autospec=True)
@@ -237,13 +226,15 @@ class MyTestCase(unittest.TestCase):
         mock_send_command.side_effect = [b'OK:0:RC ID:A00489\r\n',
                                          b'OK:0:RC Model:CR-100\r\n',
                                          b'OK:0:RC InstrumentType:2\r\n',
+                                         b'OK:0:M:No errors\r\n',
                                          b'OK:0:RM xy:\r\n']
 
         with self.assertRaises(ValueError) as cm:
             p = cri.CriProbe()
-            p.measure_xyY(degree=10)
+            p.measure()
+            p.read_measure('xy')
         err = cm.exception
-        self.assertEqual(str(err), "[b'OK:0:RM xy:\\r\\n']" or "[b'OK:0:RM xy10:\\r\\n']")
+        self.assertEqual(str(err), 'Invalid measurement')
 
     @patch('criprobe.CriProbe.get_ports', autospec=True)
     @patch('criprobe.CriProbe.open_port', autospec=True)
@@ -255,13 +246,171 @@ class MyTestCase(unittest.TestCase):
         mock_send_command.side_effect = [b'OK:0:RC ID:A00489\r\n',
                                          b'OK:0:RC Model:CR-100\r\n',
                                          b'OK:0:RC InstrumentType:2\r\n',
+                                         b'OK:0:M:No errors\r\n',
                                          b'OK:0:RM Y:\r\n']
 
         with self.assertRaises(ValueError) as cm:
             p = cri.CriProbe()
-            p.measure_xyY(degree=10)
+            p.measure()
+            p.read_measure('Y')
         err = cm.exception
-        self.assertEqual(str(err), "[b'OK:0:RM Y:\\r\\n']" or "[b'OK:0:RM Y10:\\r\\n']")
+        self.assertEqual(str(err), 'Invalid measurement')
+
+    @patch('criprobe.CriProbe.get_ports', autospec=True)
+    @patch('criprobe.CriProbe.open_port', autospec=True)
+    @patch('criprobe.CriProbe.send_command', autospec=True)
+    def test_RM_time(self, mock_send_command, mock_open_port, mock_get_ports):
+        test_port = TestPort()
+        mock_get_ports.return_value = [test_port]
+        mock_open_port.return_value = 'Mock Port'
+        mock_send_command.side_effect = [b'OK:0:RC ID:A00489\r\n',
+                                         b'OK:0:RC Model:CR-100\r\n',
+                                         b'OK:0:RC InstrumentType:2\r\n',
+                                         b'OK:0:M:No errors\r\n',
+                                         b'OK:0:RM Time:NA\r\n']
+
+        p = cri.CriProbe()
+        p.measure()
+        result = p.read_measure('Time')
+        for probe_dict in result:
+            self.assertEqual(probe_dict['Time'], 'NA')
+
+    @patch('criprobe.CriProbe.get_ports', autospec=True)
+    @patch('criprobe.CriProbe.open_port', autospec=True)
+    @patch('criprobe.CriProbe.send_command', autospec=True)
+    def test_RM_mode(self, mock_send_command, mock_open_port, mock_get_ports):
+        test_port = TestPort()
+        mock_get_ports.return_value = [test_port]
+        mock_open_port.return_value = 'Mock Port'
+        mock_send_command.side_effect = [b'OK:0:RC ID:A00489\r\n',
+                                         b'OK:0:RC Model:CR-100\r\n',
+                                         b'OK:0:RC InstrumentType:2\r\n',
+                                         b'OK:0:M:No errors\r\n',
+                                         b'OK:0:RM Mode:Colorimeter\r\n']
+
+        p = cri.CriProbe()
+        p.measure()
+        result = p.read_measure('Mode')
+        for probe_dict in result:
+            self.assertEqual(probe_dict['Mode'], 'Colorimeter')
+
+    @patch('criprobe.CriProbe.get_ports', autospec=True)
+    @patch('criprobe.CriProbe.open_port', autospec=True)
+    @patch('criprobe.CriProbe.send_command', autospec=True)
+    def test_RM_exposure(self, mock_send_command, mock_open_port, mock_get_ports):
+        test_port = TestPort()
+        mock_get_ports.return_value = [test_port]
+        mock_open_port.return_value = 'Mock Port'
+        mock_send_command.side_effect = [b'OK:0:RC ID:A00489\r\n',
+                                         b'OK:0:RC Model:CR-100\r\n',
+                                         b'OK:0:RC InstrumentType:2\r\n',
+                                         b'OK:0:M:No errors\r\n',
+                                         b'OK:0:RM Exposure:111.622 msec\r\n']
+
+        p = cri.CriProbe()
+        p.measure()
+        result = p.read_measure('Exposure')
+        for probe_dict in result:
+            self.assertEqual(probe_dict['Exposure'], 111.622)
+            self.assertEqual(probe_dict['Unit'], 'msec')
+
+    @patch('criprobe.CriProbe.get_ports', autospec=True)
+    @patch('criprobe.CriProbe.open_port', autospec=True)
+    @patch('criprobe.CriProbe.send_command', autospec=True)
+    def test_RM_RangeMode(self, mock_send_command, mock_open_port, mock_get_ports):
+        test_port = TestPort()
+        mock_get_ports.return_value = [test_port]
+        mock_open_port.return_value = 'Mock Port'
+        mock_send_command.side_effect = [b'OK:0:RC ID:A00489\r\n',
+                                         b'OK:0:RC Model:CR-100\r\n',
+                                         b'OK:0:RC InstrumentType:2\r\n',
+                                         b'OK:0:M:No errors\r\n',
+                                         b'OK:0:RM RangeMode:Auto\r\n']
+
+        p = cri.CriProbe()
+        p.measure()
+        result = p.read_measure('RangeMode')
+        for probe_dict in result:
+            self.assertEqual(probe_dict['RangeMode'], 'Auto')
+
+    @patch('criprobe.CriProbe.get_ports', autospec=True)
+    @patch('criprobe.CriProbe.open_port', autospec=True)
+    @patch('criprobe.CriProbe.send_command', autospec=True)
+    def test_RM_SyncFreq(self, mock_send_command, mock_open_port, mock_get_ports):
+        test_port = TestPort()
+        mock_get_ports.return_value = [test_port]
+        mock_open_port.return_value = 'Mock Port'
+        mock_send_command.side_effect = [b'OK:0:RC ID:A00489\r\n',
+                                         b'OK:0:RC Model:CR-100\r\n',
+                                         b'OK:0:RC InstrumentType:2\r\n',
+                                         b'OK:0:M:No errors\r\n',
+                                         b'OK:0:RM SyncFreq:0.00 Hz\r\n']
+
+        p = cri.CriProbe()
+        p.measure()
+        result = p.read_measure('SyncFreq')
+        for probe_dict in result:
+            self.assertEqual(probe_dict['SyncFreq'], 0.00)
+            self.assertEqual(probe_dict['Unit'], 'Hz')
+
+    @patch('criprobe.CriProbe.get_ports', autospec=True)
+    @patch('criprobe.CriProbe.open_port', autospec=True)
+    @patch('criprobe.CriProbe.send_command', autospec=True)
+    def test_RM_CCT(self, mock_send_command, mock_open_port, mock_get_ports):
+        test_port = TestPort()
+        mock_get_ports.return_value = [test_port]
+        mock_open_port.return_value = 'Mock Port'
+        mock_send_command.side_effect = [b'OK:0:RC ID:A00489\r\n',
+                                         b'OK:0:RC Model:CR-100\r\n',
+                                         b'OK:0:RC InstrumentType:2\r\n',
+                                         b'OK:0:M:No errors\r\n',
+                                         b'OK:0:RM CCT:5577,-0.0100\r\n']
+
+        p = cri.CriProbe()
+        p.measure()
+        result = p.read_measure('CCT')
+        for probe_dict in result:
+            self.assertEqual(probe_dict['CCT'].tolist(), [5577.0, -0.01])
+
+    @patch('criprobe.CriProbe.get_ports', autospec=True)
+    @patch('criprobe.CriProbe.open_port', autospec=True)
+    @patch('criprobe.CriProbe.send_command', autospec=True)
+    def test_RM_radiometric(self, mock_send_command, mock_open_port, mock_get_ports):
+        test_port = TestPort()
+        mock_get_ports.return_value = [test_port]
+        mock_open_port.return_value = 'Mock Port'
+        mock_send_command.side_effect = [b'OK:0:RC ID:A00489\r\n',
+                                         b'OK:0:RC Model:CR-100\r\n',
+                                         b'OK:0:RC InstrumentType:2\r\n',
+                                         b'OK:0:M:No errors\r\n',
+                                         b'OK:0:RM Radiometric:0,3.209e-01,8.835e+17\r\n']
+
+        p = cri.CriProbe()
+        p.measure()
+        result = p.read_measure('Radiometric')
+        for probe_dict in result:
+            self.assertEqual(probe_dict['Radiometric'].tolist(), [0, 3.209e-01, 8.835e+17])
+
+    @patch('criprobe.CriProbe.get_ports', autospec=True)
+    @patch('criprobe.CriProbe.open_port', autospec=True)
+    @patch('criprobe.CriProbe.send_command', autospec=True)
+    def test_RM_spectrum(self, mock_send_command, mock_open_port, mock_get_ports):
+        test_port = TestPort()
+        mock_get_ports.return_value = [test_port]
+        mock_open_port.return_value = 'Mock Port'
+        mock_send_command.side_effect = [b'OK:0:RC ID:A00489\r\n',
+                                         b'OK:0:RC Model:CR-100\r\n',
+                                         b'OK:0:RC InstrumentType:2\r\n',
+                                         b'OK:0:M:No errors\r\n',
+                                         b'OK:0:RM Spectrum:380.0,780.0,2.0,201\r\n'
+                                         b'2.119e-24\r\n'
+                                         b'1.913e-24']
+
+        p = cri.CriProbe()
+        p.measure()
+        result = p.read_measure('Radiometric')
+        for probe_dict in result:
+            self.assertEqual(probe_dict['Radiometric'].tolist(), [380.0, 780.0, 2.0, 201, 2.119e-24, 1.913e-24])
 
 
 if __name__ == '__main__':
