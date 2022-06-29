@@ -24,7 +24,9 @@ class CriProbe:
             self.probes = []
             ports = self.get_ports()
             for port in ports:
-                if re.search(r'A\d{6}', port.device):
+                # Detect a probable CRI meter on windows or mac
+                if ('COM' in port.description and 'Colorimetry Research' in port.description) or re.search(r'A\d{6}',
+                                                                                                           port.device):
                     # Save the port device for later use
                     cri_probe = self.open_port(port.device)
                     probe_info = {'Port': cri_probe}
