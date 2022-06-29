@@ -8,6 +8,7 @@ import numpy as np
 
 class TestPort:
     device = '/dev/cu.usbmodemA004891'
+    description ='Colorimetry Research (COMx)'
 
 
 class MyTestCase(unittest.TestCase):
